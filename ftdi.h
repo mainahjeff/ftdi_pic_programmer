@@ -339,4 +339,5 @@ uint8_t ftd_read_pins(FT_HANDLE ftHandle)
 
     return buff;
 }
+
 #endif // __FTCONF
