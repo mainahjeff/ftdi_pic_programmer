@@ -6,6 +6,8 @@ make:
 	./${FILE}.o 
 kern:	
 	rmmod ftdi_sio
+gmit:
+	git commit -q  user.username "mainahjeff" user.email "mahjefprojects@gmail.com"	
 clean:	
 	rm -f ${FILE}
 	rm -f *.o *./${FILE}
