@@ -5,7 +5,7 @@
 #include <string.h>
 #include <libusb-1.0/libusb.h>
 #include "ftusb.h"
-#include "ftd_configs.h"
+#include "ftdi.h"
 #include "lcd.h"
 #include <ftd2xx.h>
 unsigned char mbuff[1024];
