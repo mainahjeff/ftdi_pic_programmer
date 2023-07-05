@@ -4,7 +4,7 @@
 #include <string.h>
 #include <libusb-1.0/libusb.h>
 #include "ftusb.h"
-#include "ftd_configs.h"
+#include "ftdi.h"
 
 extern unsigned char buffer[1024];
 extern unsigned char Desc_buffer[1024];

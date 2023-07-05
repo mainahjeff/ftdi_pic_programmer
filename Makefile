@@ -1,4 +1,4 @@
-FILE=ftusb
+FILE=pic628a
 URL=https://github.com/mainahjeff/ftdi2pic16-18_programmer.git
 AC=gh repo clone mainahjeff/ftdi2pic16-18_programmer
 REPO=ftdi2pic16-18_programmer

@@ -41,7 +41,7 @@
 #define FT_232R_CBUS1_TXE 0x0D       //	CBUS1 TXE#
 #define FT_232R_CBUS2_RD 0x0D        //	CBUS2 RD#
 #define FT_232R_CBUS3_WR 0x0D        //	CBUS3 WR#
-DWORD bcnt = 0;
+DWORD bit_cnt = 0;
 DWORD outputData;
 char pindata[1];
 uint16_t baud_cnt = 0;
@@ -218,18 +218,18 @@ uint8_t char2hex(unsigned char val)
         return u;
     }
 }
-///////////////////////////////////
+////////////////////       ////////////////////
 void ftd_send_char(FT_HANDLE ftHandle, unsigned char numchar)
 {
-
     if (FT_Write(ftHandle, getchar_2str(numchar), 1, &outputData) != FT_OK)
     {
         printf("char write()  Error \n");
         exit(0);
     }
-    // printf("%x\n", numchar);
+
+    printf("%x ", numchar);
 }
-void ftd_send_string(FT_HANDLE ftHandle, uint16_t del, char *word)
+void ftd_send_string(FT_HANDLE ftHandle, uint16_t uslp, char *word)
 {
     unsigned char charnum[1024];
     bzero(charnum, 1024);
@@ -237,65 +237,62 @@ void ftd_send_string(FT_HANDLE ftHandle, uint16_t del, char *word)
     memcpy(charnum, word, strlen(word));
     for (uint8_t i = 0; i < strlen(charnum); i++)
     {
-        ftd_send_char(ftHandle, char2hex(charnum[i]));
-        printf("%c ", charnum[i]);
+        ftd_send_char(ftHandle,charnum[i]);
+        // printf("%c ", charnum[i]);
         // if (ccnt == 16)
         // {
         //     printf("\n");
         //     ccnt = 0;
         // }
-        usleep((1000 * del));
+        usleep((1000 * uslp));
         ccnt++;
     }
     printf("\n");
 }
-int ftd_file_read(FT_HANDLE ftHandle, uint16_t wr_del, uint16_t baud, uint16_t uslp, char filename[])
+int ftd_file_read(FT_HANDLE ftHandle, uint16_t uslp, char filename[])
 {
     unsigned char buff[2048];
     int fd;
     fd = open(filename, 'r', R_OK | W_OK | F_OK);
     int rd = read(fd, buff, sizeof(buff));
-    // printf("size=       %d   %d\n", rd, cnts);
-    // printf("strlen=     %ld\n", strlen(buff));
-    // printf("size-buff=  %ld\n\n", sizeof(buff));
+    printf("rd; %d cnts: %d\n", rd, cnts);
+    printf("strlen=     %ld\n", strlen(buff));
+    printf("size-buff=  %ld\n\n", sizeof(buff));
 
-    if (FT_ResetDevice(ftHandle) != FT_OK)
-        printf("reset() Error\n");
-    if (FT_SetBaudRate(ftHandle, baud) != FT_OK)
-        printf("Baud_set() Error\n");
-    if (FT_SetTimeouts(ftHandle, wr_del, wr_del) != FT_OK)
-        printf("timeout() Error");
-    if (FT_SetDataCharacteristics(ftHandle, FT_BITS_8, FT_STOP_BITS_1, FT_PARITY_NONE) != FT_OK)
-        printf("data chrx() Error\n");
     printf("...........Wait data On transit...............\n\n");
     ftd_send_string(ftHandle, uslp, buff);
     printf("\n");
     close(fd);
 }
-int ftd_read_stream(FT_HANDLE ftHandle, uint16_t baud, uint16_t delay)
+int ftd_freadFile(FT_HANDLE ftHandle, uint16_t uslp, char filename[])
+{
+    unsigned char buff[2048];
+    FILE *fd;
+    fd = fopen(filename, "r");
+    int rd = fread(buff,sizeof(buff),strlen(buff),fd);
+    printf("rd; %d cnts: %d\n", rd, cnts);
+    printf("strlen=     %ld\n", strlen(buff));
+    printf("size-buff=  %ld\n\n", sizeof(buff));
+
+    printf("...........Wait data On transit...............\n\n");
+    ftd_send_string(ftHandle, uslp, buff);
+    printf("\n");
+    fclose(fd);
+}
+int ftd_read_stream(FT_HANDLE ftHandle)
 {
     unsigned char mbuff[1];
     uint16_t buff_cnt = 0;
-    if (FT_ResetDevice(ftHandle) != FT_OK)
-        printf("reset() Error\n");
-    if (FT_SetBaudRate(ftHandle, baud) != FT_OK)
-        printf("Baud_set() Error\n");
-    if (FT_SetTimeouts(ftHandle, delay, delay) != FT_OK)
-        printf("timeout() Error");
-    if (FT_SetDataCharacteristics(ftHandle, FT_BITS_8, FT_STOP_BITS_1, FT_PARITY_NONE) != FT_OK)
-        printf("data chrx() Error\n");
     while (1)
     {
         bzero(mbuff, 64);
         // printf("read: ");
         // if (FT_Read(ftHandle, *ptr_buff_rxed, bytes_num2b_rd, *ptr_byte_num_rd) != FT_OK)
-
         if (FT_Read(ftHandle, &mbuff, 1, &outputData) != FT_OK)
         {
             printf("read() Error\n");
             exit(0);
         }
-
         printf("%.2X ", mbuff[0]);
         if (buff_cnt == 16)
         {
@@ -305,39 +302,55 @@ int ftd_read_stream(FT_HANDLE ftHandle, uint16_t baud, uint16_t delay)
         buff_cnt++;
     }
     printf("\n");
-    // cnt++;
 }
 ///////////////////////////////////
-void ftd_bit_pins(FT_HANDLE ftHandle, uint8_t pin)
+void ftd_icsp_init(FT_HANDLE ftHandle, uint8_t pindir) // 1-output 0-input
 {
-    DWORD outputData = pin;
-    DWORD bytesWritten = 0;
-
-    if (FT_SetBitMode(ftHandle, 0xFF, FT_BITMODE_ASYNC_BITBANG) != FT_OK)
+    if (FT_SetBitMode(ftHandle, pindir, FT_BITMODE_ASYNC_BITBANG) != FT_OK)
     {
         printf("Bitmode() Error\n");
         exit(0);
     }
+}
+void ftd_eusart_init(FT_HANDLE ftHandle, uint16_t baud, uint8_t readtm, uint8_t writetm)
+{
+    if (FT_Open(0, &ftHandle) != FT_OK)
+    {
+        printf("Open() Error\n");
+        exit(0);
+    }
+    if (FT_ResetDevice(ftHandle) != FT_OK)
+        printf("reset()or\n");
+    if (FT_SetBaudRate(ftHandle, baud) != FT_OK)
+        printf("Baud_set() Error\n");
+    if (FT_SetTimeouts(ftHandle, readtm, writetm) != FT_OK)
+        printf("timeout() Error");
+    if (FT_SetDataCharacteristics(ftHandle, FT_BITS_8, FT_STOP_BITS_1, FT_PARITY_NONE) != FT_OK)
+        printf("data chrx() Error\n");
+}
+void ftd_bit_pins(FT_HANDLE ftHandle, uint8_t pin, uint32_t del)
+{
+    DWORD outputData = pin;
+    // DWORD bytesWritten = 0;
     ftd_send_char(ftHandle, pin);
-    usleep(200);
+    usleep(del);
 }
 uint8_t ftd_read_pins(FT_HANDLE ftHandle)
 {
     unsigned char buff;
     unsigned char cnt = 0;
-    if (FT_SetBitMode(ftHandle, 0XFF, FT_BITMODE_SYNC_BITBANG) != FT_OK)
+    if (FT_SetBitMode(ftHandle, 0X00, FT_BITMODE_SYNC_BITBANG) != FT_OK)
         printf("BitMode() Error\n");
     if (FT_GetBitMode(ftHandle, &buff) != FT_OK)
         printf("getBitMode() Error\n");
+        printf("Bit  %d \n", buff);
     while ((buff >> 7) == 1)
     {
         // printf("BF: Error()\n");
-        printf("BF: ERROR   %d \n", buff);
-        exit(1);
+        // exit(1);
     }
     // printf("%d ", buff);
 
     return buff;
 }
-
 #endif // __FTCONF
